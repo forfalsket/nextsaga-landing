@@ -355,15 +355,40 @@ function Waypoint({
   )
 }
 
+// Loops.so form endpoint
+const LOOPS_FORM_ID = 'cml0mt6ov00qc0iyiynen9xcm'
+
 // Destination section
 function Destination({ reached }: { reached: boolean }) {
   const [email, setEmail] = useState('')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Waitlist signup:', email)
-    alert("Thanks for joining the quest! We'll be in touch.")
-    setEmail('')
+    setStatus('loading')
+    setErrorMessage('')
+
+    try {
+      const response = await fetch(`https://app.loops.so/api/newsletter-form/${LOOPS_FORM_ID}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `email=${encodeURIComponent(email)}`,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setStatus('success')
+        setEmail('')
+      } else {
+        setStatus('error')
+        setErrorMessage(data.message || 'Something went wrong. Please try again.')
+      }
+    } catch {
+      setStatus('error')
+      setErrorMessage('Network error. Please try again.')
+    }
   }
 
   return (
@@ -426,22 +451,33 @@ function Destination({ reached }: { reached: boolean }) {
         style={{ transitionDelay: '0.8s' }}
       >
         <p className="font-serif text-[1.3rem] text-ink mb-5">Interested in walking your own story?</p>
-        <form onSubmit={handleSubmit}>
-          <div className="input-group flex gap-2 mb-3">
-            <input
-              type="email"
-              className="input-field"
-              placeholder="your@email.com"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <button type="submit" className="btn-submit">
-              Count me in
-            </button>
+
+        {status === 'success' ? (
+          <div className="py-4">
+            <p className="font-serif text-[1.1rem] text-forest">You're on the list! We'll be in touch.</p>
           </div>
-          <p className="text-[0.8rem] text-ink-light">No spam. Just the signal when the trail opens.</p>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="input-group flex gap-2 mb-3">
+              <input
+                type="email"
+                className="input-field"
+                placeholder="your@email.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={status === 'loading'}
+              />
+              <button type="submit" className="btn-submit" disabled={status === 'loading'}>
+                {status === 'loading' ? 'Joining...' : 'Count me in'}
+              </button>
+            </div>
+            {status === 'error' && (
+              <p className="text-[0.85rem] text-marker mb-2">{errorMessage}</p>
+            )}
+            <p className="text-[0.8rem] text-ink-light">No spam. Just the signal when the trail opens.</p>
+          </form>
+        )}
       </div>
     </div>
   )
